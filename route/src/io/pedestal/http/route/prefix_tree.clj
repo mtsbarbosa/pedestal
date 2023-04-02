@@ -119,7 +119,13 @@
   a payload object, return a tree where this object has been instered
   at path-spec under this node."
   [node key path-spec o]
-  (update-in node [:children key] insert path-spec o))
+  (update-in node [:children key] insert path-spec o)
+  #_(->> (update-in node [:children key] insert path-spec o)
+         :children
+         (sort-by (fn [[k _]] k) (fn [k _] (if (or (= k ":")
+                                                  (= k "*")) 1 -1)))
+         (into {})
+         (assoc node :children)))
 
 (defn- new-node
   "Given a path-spec and a payload object, return a new tree node. If
@@ -237,15 +243,12 @@
 (defn- get-child
   "Given a node, a request path and a segment size (the lcs index of
   node's segment and path) return the child node which will get us one
-  step closer to finding a match.
-
-  If a wildcard or catch-all child exist then they will be the only
-  possible child."
+  step closer to finding a match."
   [node path segment-size]
   (let [c (:children node)]
-    (or (get c ":")
-        (get c "*")
-        (get c (char-key path segment-size)))))
+    (or (get c (char-key path segment-size))
+        (get c ":")
+        (get c "*"))))
 
 (defn lookup
   "Given a tree node and request path, find a matching leaf node and
@@ -506,4 +509,3 @@
   ;;=> {:rest "one/two", :x "bar"}
 
   )
-

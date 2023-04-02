@@ -347,6 +347,13 @@
        ["/hierarchical/intercepted"  :get [interceptor-1 interceptor-2 request-inspection] :route-name :hierarchical-intercepted]
        ["/terminal/intercepted"      :get [interceptor-1 interceptor-2 request-inspection] :route-name :terminal-intercepted]}))
 
+(def set-multi-method-routes
+  (expand-routes
+    #{["/parent"        :get  trailing-slash :route-name :get-parents]
+      ["/parent/:id"    :get  trailing-slash :route-name :get-parent-by-id]
+      ["/parent"        :post trailing-slash :route-name :post-parent]
+      ["/parent/child"  :get  trailing-slash :route-name :get-child]}))
+
 ;; HTTP verb-smuggling in query string is disabled here:
 (defn make-linker
   [routes]
@@ -1331,3 +1338,24 @@
           false
           (catch java.lang.AssertionError ae
             true)))))
+
+(defn test-set-multi-methods-routes [router-impl-key]
+  (are [route-name path path-req method]
+    (= {:route-name route-name :path path}
+       (-> set-multi-method-routes
+
+           (test-query-execute
+            router-impl-key
+            {:request {:request-method method
+                       :path-info path-req}})
+           :route
+           (select-keys [:route-name :path])))
+    :get-parents      "/parent"       "/parent"       :get
+    :get-parent-by-id "/parent/:id"   "/parent/123"   :get
+    :post-parent      "/parent"       "/parent"       :post
+    :get-child        "/parent/child" "/parent/child" :get
+    ))
+
+(deftest match-set-multi-methods-routes
+  (test-set-multi-methods-routes :prefix-tree)
+  (test-set-multi-methods-routes :linear-search))
